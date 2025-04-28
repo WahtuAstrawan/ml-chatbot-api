@@ -1,0 +1,6 @@
+fastapi[standard]
+sentence-transformers
+faiss-cpu
+numpy
+google-genai
+python-dotenv
