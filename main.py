@@ -95,8 +95,9 @@ INSTRUKSI PENTING:
 1. Berdasarkan HANYA konteks di atas, jawab pertanyaan dengan akurat dan spesifik (sesuaikan kata katanya agar mudah dimengerti dan jelas dalam bahasa indonesia).
 2. Jika ada nama tokoh atau istilah yang disebutkan dalam konteks, sertakan namanya dengan lengkap dalam jawaban.
 3. Ikuti alur narasi sesuai urutan bait.
-4. Jika ada referensi ke tokoh sebelumnya (dengan kata "he", "she", dll), pastikan mengidentifikasi siapa tokohnya dengan nama sebenarnya.
-5. Jawaban harus singkat, tepat dan to the point. Tidak usah isi kalimat atau kata kata pengantar/tambahan.
+4. Jika ada referensi ke tokoh sebelumnya (dengan kata "he", "she", dll), pastikan mengidentifikasi siapa tokohnya dengan nama dan konteks sebenarnya.
+5. Jawaban harus singkat, tepat dan to the point. Tidak usah isi kalimat atau kata kata pengantar/tambahan seperti "berdasarkan konteks diatas", "semoga membantu", DLL (HANYA JAWABAN).
+6. Jawaban harus berupa plain teks murni (paragraf) dan tidak memiliki format atau tambahan lain.
 """.strip()
 
 
@@ -124,7 +125,7 @@ async def chat_with_kakawin_ramayana(query: str, top_k: int = 2, context_window:
 
     # Menampilkan konteks yang relevan
     context_details = [
-        {"sargah_number": c["sargah_number"], "sargah_name": c["sargah_name"], "bait": c["bait"], "text": c["text"]}
+        {"sargah_number": c["sargah_number"], "sargah_name": c["sargah_name"], "bait": c["bait"], "sanskrit_text": c["sanskrit_text"], "text": c["text"]}
         for c in contexts
     ]
 
