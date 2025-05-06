@@ -8,6 +8,7 @@ import numpy as np
 import json
 from dotenv import load_dotenv
 import os
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 gemini_api_key = os.getenv('GEMINI_API_KEY')
@@ -25,6 +26,14 @@ except json.JSONDecodeError:
 
 app = FastAPI()
 client = genai.Client(api_key=gemini_api_key)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Load embedding model
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
