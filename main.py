@@ -76,10 +76,13 @@ def get_surrounding_context(selected_entries, window_size=1):
     return expanded_context
 
 
-# Retrieval function yang ditingkatkan dengan FAISS dan konteks tambahan
-def retrieve_with_faiss_enhanced(query: str, top_k=3, context_window=1):
+def retrieve_with_faiss_enhanced(query: str, top_k=3, context_window=1, distance_threshold=1.0):
     query_embedding = embedding_model.encode([query])
     distances, indices = index.search(np.array(query_embedding), top_k)
+
+    # Cek apakah semua hasil memiliki distance di atas threshold (artinya out of context)
+    if all(dist > distance_threshold for dist in distances[0]):
+        return []  # Kembalikan list kosong jika tidak ada yang relevan
 
     # Dapatkan entri dari indeks yang ditemukan
     retrieved_entries = [data[i] for i in indices[0]]
@@ -88,6 +91,7 @@ def retrieve_with_faiss_enhanced(query: str, top_k=3, context_window=1):
     expanded_entries = get_surrounding_context(retrieved_entries, context_window)
 
     return expanded_entries
+
 
 
 # Prompt builder untuk Gemini AI
@@ -134,6 +138,12 @@ async def chat_with_kakawin_ramayana(request: ChatRequest):
 
     # Retrieve konteks yang relevan
     contexts = retrieve_with_faiss_enhanced(request.query, request.top_k, request.context_window)
+
+    if not contexts:
+        return {
+            "response": "Maaf, saya tidak menemukan jawaban yang relevan dari Kakawin Ramayana untuk pertanyaan tersebut.",
+            "context": ""
+        }
 
     # Membangun prompt dengan konteks yang diambil
     prompt = build_prompt(request.query, contexts)
