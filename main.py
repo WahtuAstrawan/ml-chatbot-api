@@ -9,6 +9,7 @@ import json
 from dotenv import load_dotenv
 import os
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 load_dotenv()
 gemini_api_key = os.getenv('GEMINI_API_KEY')
@@ -37,6 +38,11 @@ app.add_middleware(
 
 # Load embedding model
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+
+class ChatRequest(BaseModel):
+    query: str
+    top_k: int = 2
+    context_window: int = 1
 
 # Encode teks dari dataset
 corpus = [entry['text'] for entry in data]
@@ -117,24 +123,30 @@ def get_app_info():
 
 
 # Endpoint untuk menangani pertanyaan mengenai Kakawin Ramayana
-@app.get("/chat")
-async def chat_with_kakawin_ramayana(query: str, top_k: int = 2, context_window: int = 1):
-    if not query.strip():
+@app.post("/chat")
+async def chat_with_kakawin_ramayana(request: ChatRequest):
+    if not request.query.strip():
         raise HTTPException(status_code=400, detail="query cannot be empty")
-    if top_k <= 0:
+    if request.top_k <= 0:
         raise HTTPException(status_code=400, detail="top_k must be positive")
-    if context_window < 0:
+    if request.context_window < 0:
         raise HTTPException(status_code=400, detail="context_window cannot be negative")
 
     # Retrieve konteks yang relevan
-    contexts = retrieve_with_faiss_enhanced(query, top_k, context_window)
+    contexts = retrieve_with_faiss_enhanced(request.query, request.top_k, request.context_window)
 
     # Membangun prompt dengan konteks yang diambil
-    prompt = build_prompt(query, contexts)
+    prompt = build_prompt(request.query, contexts)
 
     # Menampilkan konteks yang relevan
     context_details = [
-        {"sargah_number": c["sargah_number"], "sargah_name": c["sargah_name"], "bait": c["bait"], "sanskrit_text": c["sanskrit_text"], "text": c["text"]}
+        {
+            "sargah_number": c["sargah_number"],
+            "sargah_name": c["sargah_name"],
+            "bait": c["bait"],
+            "sanskrit_text": c["sanskrit_text"],
+            "text": c["text"]
+        }
         for c in contexts
     ]
 
