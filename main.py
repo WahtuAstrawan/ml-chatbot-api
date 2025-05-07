@@ -77,15 +77,12 @@ def get_surrounding_context(selected_entries, window_size=1):
 
 
 # Retrieval function yang ditingkatkan dengan FAISS dan konteks tambahan
-def retrieve_with_faiss_enhanced(query: str, top_k=3, context_window=1, distance_threshold=1.0):
+def retrieve_with_faiss_enhanced(query: str, top_k=3, context_window=1):
     query_embedding = embedding_model.encode([query])
     distances, indices = index.search(np.array(query_embedding), top_k)
 
-    # Filter hasil berdasarkan threshold
-    valid_indices = [i for i, dist in zip(indices[0], distances[0]) if dist <= distance_threshold]
-
     # Dapatkan entri dari indeks yang ditemukan
-    retrieved_entries = [data[i] for i in valid_indices[0]]
+    retrieved_entries = [data[i] for i in indices[0]]
 
     # Perluas dengan konteks sekitarnya
     expanded_entries = get_surrounding_context(retrieved_entries, context_window)
@@ -116,6 +113,7 @@ INSTRUKSI PENTING:
 4. Jika ada referensi ke tokoh sebelumnya (dengan kata "he", "she", dll), pastikan mengidentifikasi siapa tokohnya dengan nama dan konteks sebenarnya.
 5. Jawaban harus singkat, tepat dan to the point. Tidak usah isi kalimat atau kata kata pengantar/tambahan seperti "berdasarkan konteks diatas", "semoga membantu", DLL (HANYA JAWABAN).
 6. Jawaban harus berupa plain teks murni (paragraf) dan tidak memiliki format atau tambahan lain.
+7. Jika pertanyaan sama sekali tidak relevan dengan konteks kakawin ramayananya. berikan jawaban "Maaf, pertanyaan Anda tidak relevan dengan Kakawin Ramayana"
 """.strip()
 
 
@@ -156,6 +154,9 @@ async def chat_with_kakawin_ramayana(request: ChatRequest):
     # Gemini API request
     try:
         response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+
+        if response.text == "Maaf, pertanyaan Anda tidak relevan dengan Kakawin Ramayana":
+            context_details = []
 
         return {
             "response": response.text,
