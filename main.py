@@ -84,10 +84,6 @@ def retrieve_with_faiss_enhanced(query: str, top_k=3, context_window=1, distance
     # Filter hasil berdasarkan threshold
     valid_indices = [i for i, dist in zip(indices[0], distances[0]) if dist <= distance_threshold]
 
-    # Jika tidak ada hasil yang cukup dekat (relevan), anggap tidak ada konteks
-    if not valid_indices:
-        return []
-
     # Dapatkan entri dari indeks yang ditemukan
     retrieved_entries = [data[i] for i in valid_indices[0]]
 
@@ -141,12 +137,6 @@ async def chat_with_kakawin_ramayana(request: ChatRequest):
 
     # Retrieve konteks yang relevan
     contexts = retrieve_with_faiss_enhanced(request.query, request.top_k, request.context_window)
-
-    if not contexts:
-        return {
-            "response": "Maaf, saya tidak menemukan jawaban yang relevan dari Kakawin Ramayana untuk pertanyaan tersebut.",
-            "context": ""
-        }
 
     # Membangun prompt dengan konteks yang diambil
     prompt = build_prompt(request.query, contexts)
