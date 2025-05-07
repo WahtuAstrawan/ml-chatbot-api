@@ -156,7 +156,10 @@ async def chat_with_kakawin_ramayana(request: ChatRequest):
         response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
 
         if response.text == "Maaf, pertanyaan Anda tidak relevan dengan Kakawin Ramayana":
-            context_details = []
+            return {
+                "response": response.text,
+                "context": []
+            }
 
         return {
             "response": response.text,
