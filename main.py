@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from deep_translator import GoogleTranslator
 
 load_dotenv()
 gemini_api_key = os.getenv('GEMINI_API_KEY')
@@ -52,6 +53,15 @@ corpus_embeddings = embedding_model.encode(corpus)
 dimension = corpus_embeddings[0].shape[0]
 index = faiss.IndexFlatL2(dimension)
 index.add(np.array(corpus_embeddings))
+
+# Fungsi untuk translate ke English
+def translate_to_english(text: str) -> str:
+    try:
+        return GoogleTranslator(source='auto', target='en').translate(text)
+    except Exception as e:
+        print(f"Translation error: {e}")
+        return text
+
 
 # Fungsi untuk mendapatkan konteks yang lebih luas (bait-bait sekitar)
 def get_surrounding_context(selected_entries, window_size=1):
@@ -113,7 +123,7 @@ INSTRUKSI PENTING:
 4. Jika ada referensi ke tokoh sebelumnya (dengan kata "he", "she", dll), pastikan mengidentifikasi siapa tokohnya dengan nama dan konteks sebenarnya.
 5. Jawaban harus singkat, tepat dan to the point. Tidak usah isi kalimat atau kata kata pengantar/tambahan seperti "berdasarkan konteks diatas", "semoga membantu", DLL (HANYA JAWABAN).
 6. Jawaban harus berupa plain teks murni (paragraf) dan tidak memiliki format atau tambahan lain.
-7. Jika pertanyaan sama sekali tidak relevan dengan konteks kakawin ramayananya. berikan jawaban "Maaf, pertanyaan Anda tidak relevan dengan Kakawin Ramayana"
+7. Jika pertanyaan sama sekali tidak relevan dengan konteks kakawin ramayananya. berikan jawaban "Maaf, pertanyaan Anda tidak relevan dengan Kakawin Ramayana."
 """.strip()
 
 
@@ -133,8 +143,11 @@ async def chat_with_kakawin_ramayana(request: ChatRequest):
     if request.context_window < 0:
         raise HTTPException(status_code=400, detail="context_window cannot be negative")
 
+    # Translate query ke English agar relevan dengan FAISS
+    translated_query = translate_to_english(request.query)
+
     # Retrieve konteks yang relevan
-    contexts = retrieve_with_faiss_enhanced(request.query, request.top_k, request.context_window)
+    contexts = retrieve_with_faiss_enhanced(translated_query, request.top_k, request.context_window)
 
     # Membangun prompt dengan konteks yang diambil
     prompt = build_prompt(request.query, contexts)
@@ -155,7 +168,7 @@ async def chat_with_kakawin_ramayana(request: ChatRequest):
     try:
         response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
 
-        if response.text == "Maaf, pertanyaan Anda tidak relevan dengan Kakawin Ramayana":
+        if "Maaf, pertanyaan Anda tidak relevan dengan Kakawin Ramayana" in response.text.strip():
             return {
                 "response": response.text,
                 "context": []
