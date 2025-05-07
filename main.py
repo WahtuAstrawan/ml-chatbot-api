@@ -42,8 +42,8 @@ embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 class ChatRequest(BaseModel):
     query: str
-    top_k: int = 2
-    context_window: int = 1
+    top_k: int = 1
+    context_window: int = 3
 
 # Encode teks dari dataset
 corpus = [entry['text'] for entry in data]
@@ -64,35 +64,59 @@ def translate_to_english(text: str) -> str:
 
 
 # Fungsi untuk mendapatkan konteks yang lebih luas (bait-bait sekitar)
-def get_surrounding_context(selected_entries, window_size=1):
+def get_surrounding_context(selected_entries, window_size=3):
     expanded_context = []
 
     for entry in selected_entries:
         sargah_num = entry['sargah_number']
         bait_num = entry['bait']
 
-        # Temukan semua bait di sargah yang sama
-        same_sargah_entries = [e for e in data if e['sargah_number'] == sargah_num]
+        if entry not in expanded_context:
+            expanded_context.append(entry)
 
-        # Dapatkan bait-bait sekitar dalam jendela yang ditentukan
+        same_sargah_entries = [e for e in data if e['sargah_number'] == sargah_num]
         for nearby_entry in same_sargah_entries:
-            if abs(nearby_entry['bait'] - bait_num) <= window_size:
+            if 0 < nearby_entry['bait'] - bait_num <= window_size:
                 if nearby_entry not in expanded_context:
                     expanded_context.append(nearby_entry)
 
-    # Urutkan berdasarkan sargah dan nomor bait untuk mempertahankan urutan narasi
+        for nearby_entry in same_sargah_entries:
+            if 0 < bait_num - nearby_entry['bait'] <= window_size:
+                if nearby_entry not in expanded_context:
+                    expanded_context.append(nearby_entry)
+
+        if bait_num <= window_size and sargah_num > 1:
+            prev_sargah = sargah_num - 1
+            prev_sargah_entries = [e for e in data if e['sargah_number'] == prev_sargah]
+            if prev_sargah_entries:
+                prev_sargah_entries.sort(key=lambda x: x['bait'], reverse=True)
+                for nearby_entry in prev_sargah_entries[:window_size]:
+                    if nearby_entry not in expanded_context:
+                        expanded_context.append(nearby_entry)
+
+        lower_baits = [e for e in same_sargah_entries if 0 < e['bait'] - bait_num <= window_size]
+        if len(lower_baits) < window_size:
+            next_sargah = sargah_num + 1
+            next_sargah_entries = [e for e in data if e['sargah_number'] == next_sargah]
+            if next_sargah_entries:
+                next_sargah_entries.sort(key=lambda x: x['bait'])
+                for nearby_entry in next_sargah_entries[:window_size - len(lower_baits)]:
+                    if nearby_entry not in expanded_context:
+                        expanded_context.append(nearby_entry)
+
     expanded_context.sort(key=lambda x: (x['sargah_number'], x['bait']))
 
     return expanded_context
 
 
 # Retrieval function yang ditingkatkan dengan FAISS dan konteks tambahan
-def retrieve_with_faiss_enhanced(query: str, top_k=3, context_window=1):
+def retrieve_with_faiss_enhanced(query: str, top_k=1, context_window=3):
     query_embedding = embedding_model.encode([query])
     distances, indices = index.search(np.array(query_embedding), top_k)
 
     # Dapatkan entri dari indeks yang ditemukan
     retrieved_entries = [data[i] for i in indices[0]]
+    print(retrieved_entries)
 
     # Perluas dengan konteks sekitarnya
     expanded_entries = get_surrounding_context(retrieved_entries, context_window)
