@@ -39,21 +39,8 @@ app.add_middleware(
 # Load embedding model
 embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# Kelompokkan dataset 1 dokumen = 1 sargah
-sargah_texts = {}
-corpus = []
-sargah_mapping = {}
-
-for entry in data:
-    sargah_num = entry['sargah_number']
-    if sargah_num not in sargah_texts:
-        sargah_texts[sargah_num] = []
-    sargah_texts[sargah_num].append(entry['text'])
-
-for sargah_num, texts in sorted(sargah_texts.items()):
-    combined_text = " ".join(texts)
-    corpus.append(combined_text)
-    sargah_mapping[len(corpus) - 1] = sargah_num
+# Dataset 1 dokumen = 1 bait
+corpus = [entry['text'] for entry in data]
 
 # Encode teks dari corpus
 corpus_embeddings = embedding_model.encode(corpus)
@@ -63,17 +50,66 @@ dimension = corpus_embeddings[0].shape[0]
 index = faiss.IndexFlatL2(dimension)
 index.add(np.array(corpus_embeddings))
 
+
 # Retrieval function with FAISS
-def retrieve_with_faiss(query: str, top_k=1):
+def retrieve_with_faiss(query: str, top_k=3, context_size=10):
     query_embedding = embedding_model.encode([query])
     distances, indices = index.search(np.array(query_embedding), top_k)
 
-    # Ambil semua bait dari sargah yang terpilih
     retrieved_entries = []
+    seen_baits = set()
+
     for idx in indices[0]:
-        sargah_num = sargah_mapping[idx]
+        sargah_num = data[idx]['sargah_number']
+        bait_num = data[idx]['bait']
+
+        # Ambil semua bait dalam sargah yang sama
         same_sargah_entries = [e for e in data if e['sargah_number'] == sargah_num]
-        retrieved_entries.extend(same_sargah_entries)
+        same_sargah_entries.sort(key=lambda x: x['bait'])
+
+        # Temukan indeks bait terpilih dalam sargah
+        selected_entry_idx = next(i for i, e in enumerate(same_sargah_entries) if e['bait'] == bait_num)
+        total_baits = len(same_sargah_entries)
+
+        # Ambil context_size bait sebelum dan sesudah
+        start_idx = max(0, selected_entry_idx - context_size)
+        end_idx = min(total_baits, selected_entry_idx + context_size + 1)  # +1 karena inclusive
+
+        # Tambahkan bait dari start_idx ke end_idx, hindari duplikasi
+        for entry in same_sargah_entries[start_idx:end_idx]:
+            bait_id = (entry['sargah_number'], entry['bait'])
+            if bait_id not in seen_baits:
+                retrieved_entries.append(entry)
+                seen_baits.add(bait_id)
+
+        # Jika kurang dari 2*context_size + 1 bait, tambahkan bait sekitar
+        current_count = sum(1 for e in retrieved_entries if e['sargah_number'] == sargah_num)
+        expected_count = 2 * context_size + 1
+        if current_count < expected_count:
+            remaining_needed = expected_count - current_count
+            # Coba tambahkan bait sebelum start_idx, tapi tidak lintas sargah
+            if sargah_num > 1:  # Hanya ambil jika bukan Sargah 1
+                extra_start_idx = max(0, start_idx - remaining_needed)
+                for entry in same_sargah_entries[extra_start_idx:start_idx]:
+                    bait_id = (entry['sargah_number'], entry['bait'])
+                    if bait_id not in seen_baits:
+                        retrieved_entries.append(entry)
+                        seen_baits.add(bait_id)
+                        current_count += 1
+                        if current_count >= expected_count:
+                            break
+
+            # Jika masih kurang, tambahkan bait setelah end_idx
+            if current_count < expected_count:
+                extra_end_idx = min(total_baits, end_idx + (expected_count - current_count))
+                for entry in same_sargah_entries[end_idx:extra_end_idx]:
+                    bait_id = (entry['sargah_number'], entry['bait'])
+                    if bait_id not in seen_baits:
+                        retrieved_entries.append(entry)
+                        seen_baits.add(bait_id)
+                        current_count += 1
+                        if current_count >= expected_count:
+                            break
 
     # Urutkan berdasarkan sargah dan nomor bait
     retrieved_entries.sort(key=lambda x: (x['sargah_number'], x['bait']))
@@ -107,7 +143,7 @@ INSTRUKSI PENTING:
 4. Jika pertanyaan meminta motivasi, reaksi, atau tindakan karakter, jelaskan dengan lengkap termasuk pemicu tindakan, konsekuensi, dan nilai budaya (misalnya, dharma) jika relevan.
 5. Jawaban harus singkat, tepat, dan langsung ke inti tanpa kalimat pengantar atau penutup seperti "berdasarkan konteks di atas" atau "semoga membantu."
 6. Gunakan format teks murni (paragraf) tanpa penomoran, bullet, atau format lain.
-7. Harap sertakan referensi bait dalam jawaban (seperti, "Desaratha adalah seorang raja (bait 34-38)") dalam jawaban; pastikan jawaban akurat dan mencerminkan konteks.
+7. Harap sertakan referensi sarggah dan bait dalam jawaban (seperti, "Desaratha adalah seorang raja (Prathamas Sarggah, bait 34-38)") dalam jawaban; pastikan jawaban akurat dan mencerminkan konteks.
 8. Jawaban yang diberikan harap jangan berlebihan dan bertele-tele, cukup jawab apa yang ditanyakan oleh pertanyaan saja sesuai konteks.
 9. Jika pertanyaan sama sekali tidak relevan dengan Kakawin Ramayana. berikan jawaban HANYA SEPERTI BERIKUT "Maaf, pertanyaan Anda tidak relevan dengan Kakawin Ramayana."
 """.strip()
@@ -143,18 +179,24 @@ def get_app_info():
 
 class ChatRequest(BaseModel):
     query: str
+    top_k: int = 3
+    context_size: int = 10
 
 # Endpoint untuk menangani pertanyaan mengenai Kakawin Ramayana
 @app.post("/chat")
 async def chat_with_kakawin_ramayana(request: ChatRequest):
     if not request.query.strip():
         raise HTTPException(status_code=400, detail="query cannot be empty")
+    if request.top_k <= 0:
+        raise HTTPException(status_code=400, detail="top_k must be positive")
+    if request.context_size < 0:
+        raise HTTPException(status_code=400, detail="context_size must be non-negative")
 
     # Translate query ke English agar relevan dengan FAISS
     enhance_query = get_query(request.query)
 
     # Retrieve konteks yang relevan
-    contexts = retrieve_with_faiss(enhance_query)
+    contexts = retrieve_with_faiss(enhance_query, request.top_k, request.context_size)
 
     # Membangun prompt dengan konteks yang diambil
     prompt = build_prompt(request.query, contexts)
