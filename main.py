@@ -41,6 +41,8 @@ embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
 
 # Dataset 1 dokumen = 1 bait
 corpus = [entry['text'] for entry in data]
+print("Total bait yang ada: ")
+print(len(corpus))
 
 # Encode teks dari corpus
 corpus_embeddings = embedding_model.encode(corpus)
@@ -55,6 +57,9 @@ index.add(np.array(corpus_embeddings))
 def retrieve_with_faiss(query: str, top_k=3, context_size=10):
     query_embedding = embedding_model.encode([query])
     distances, indices = index.search(np.array(query_embedding), top_k)
+
+    top_k_indices = indices[0][:top_k].tolist()
+    top_k_entries = [data[idx] for idx in top_k_indices]
 
     retrieved_entries = []
     seen_baits = set()
@@ -117,7 +122,7 @@ def retrieve_with_faiss(query: str, top_k=3, context_size=10):
     print(query)
     print(retrieved_entries[0])
 
-    return retrieved_entries
+    return retrieved_entries, top_k_entries
 
 
 # Prompt builder untuk Gemini AI
@@ -196,12 +201,23 @@ async def chat_with_kakawin_ramayana(request: ChatRequest):
     enhance_query = get_query(request.query)
 
     # Retrieve konteks yang relevan
-    contexts = retrieve_with_faiss(enhance_query, request.top_k, request.context_size)
+    retrieved_entries, top_k_entries = retrieve_with_faiss(enhance_query, request.top_k, request.context_size)
 
     # Membangun prompt dengan konteks yang diambil
-    prompt = build_prompt(request.query, contexts)
+    prompt = build_prompt(request.query, retrieved_entries)
 
     # Menampilkan konteks yang relevan
+    top_k_details = [
+        {
+            "sargah_number": c["sargah_number"],
+            "sargah_name": c["sargah_name"],
+            "bait": c["bait"],
+            "sanskrit_text": c["sanskrit_text"],
+            "text": c["text"]
+        }
+        for c in top_k_entries
+    ]
+
     context_details = [
         {
             "sargah_number": c["sargah_number"],
@@ -210,7 +226,7 @@ async def chat_with_kakawin_ramayana(request: ChatRequest):
             "sanskrit_text": c["sanskrit_text"],
             "text": c["text"]
         }
-        for c in contexts
+        for c in retrieved_entries
     ]
 
     # Gemini API request
@@ -220,11 +236,13 @@ async def chat_with_kakawin_ramayana(request: ChatRequest):
         if "pertanyaan anda tidak relevan" in response.text.strip().lower():
             return {
                 "response": response.text,
+                "top_k_context": [],
                 "context": []
             }
 
         return {
             "response": response.text,
+            "top_k_context": top_k_details,
             "context": context_details
         }
     except Exception as e:
