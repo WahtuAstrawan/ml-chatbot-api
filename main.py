@@ -1,6 +1,8 @@
 import logging
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+import os
 
 from config.settings import get_settings
 from models.schemas import ChatRequest, ChatResponse, ContextEntry, ErrorResponse
@@ -101,3 +103,43 @@ async def chat_with_kakawin_ramayana(
     except Exception as e:
         logger.error(f"Error processing chat request: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to process request: {str(e)}")
+
+
+@app.get("/sound", tags=["Sound"])
+async def get_bait_sound(
+    sargah: int = Query(..., gt=0, description="Sargah number (positive integer)"),
+    bait: int = Query(..., gt=0, description="Bait number (positive integer)")
+):
+    """
+    Retrieve an MP3 file for the specified sargah and bait.
+
+    Args:
+        sargah: The sargah number (required, positive integer)
+        bait: The bait number (required, positive integer)
+
+    Returns:
+        MP3 file if found, otherwise raises 404 error
+    """
+    try:
+        # Define the path to the sounds folder
+        sounds_dir = os.path.join(os.path.dirname(__file__), "sounds")
+        file_name = f"{sargah}-{bait}.mp3"
+        file_path = os.path.join(sounds_dir, file_name)
+
+        # Check if file exists
+        if not os.path.isfile(file_path):
+            logger.warning(f"MP3 file not found: {file_path}")
+            raise HTTPException(status_code=404, detail=f"MP3 file for sargah {sargah} bait {bait} not found")
+
+        logger.info(f"Serving MP3 file: {file_path}")
+        return FileResponse(
+            path=file_path,
+            media_type="audio/mpeg",
+            filename=file_name
+        )
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        logger.error(f"Error retrieving sound file: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve sound file: {str(e)}")

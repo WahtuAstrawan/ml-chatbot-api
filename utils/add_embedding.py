@@ -2,7 +2,7 @@ import json
 from sentence_transformers import SentenceTransformer
 
 # Load the JSON dataset
-input_file = "datasets/dataset.json"
+input_file = "../datasets/dataset.json"
 with open(input_file, "r", encoding="utf-8") as f:
     dataset = json.load(f)
 
@@ -20,7 +20,7 @@ for record, embedding in zip(dataset, embeddings):
     record["embedding"] = embedding.tolist()  # Convert numpy array to list for JSON serialization
 
 # Save the updated dataset
-output_file = "datasets/dataset_with_embedding.json"
+output_file = "../datasets/dataset_with_embedding.json"
 with open(output_file, "w", encoding="utf-8") as f:
     json.dump(dataset, f, ensure_ascii=False, indent=2)
 
