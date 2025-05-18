@@ -5,3 +5,5 @@ numpy
 google-genai
 python-dotenv
 deep-translator
+pydantic
+google
