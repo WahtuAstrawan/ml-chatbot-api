@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-
 class Settings:
     # Application Settings
     APP_NAME: str = "Kakawin Ramayana Chatbot"
@@ -14,6 +13,7 @@ class Settings:
 
     # API Keys
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY")
+    COHERE_API_KEY: str = os.getenv("COHERE_API_KEY")
 
     # Dataset
     DATASET_PATH: str = "datasets/dataset_with_embedding.json"
