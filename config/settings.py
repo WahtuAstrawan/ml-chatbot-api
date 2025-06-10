@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-
 class Settings:
     # Application Settings
     APP_NAME: str = "Kakawin Ramayana Chatbot"
