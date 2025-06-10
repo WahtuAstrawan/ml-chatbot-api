@@ -47,7 +47,6 @@ def get_app_info():
 async def chat_with_kakawin_ramayana(
         request: ChatRequest,
         gemini_service=Depends(get_gemini_service),
-        retrieval_service=Depends(get_retrieval_service)
 ):
     """
     Process a chat request and generate a response based on Kakawin Ramayana dataset.
@@ -66,6 +65,7 @@ async def chat_with_kakawin_ramayana(
         logger.info(f"Received chat request: {request.query[:50]}{'...' if len(request.query) > 50 else ''}")
 
         # Enhance query for better retrieval
+        retrieval_service = get_retrieval_service(embedding_model=request.embedding_model)
         enhanced_query = gemini_service.enhance_query(request.query)
         logger.debug(f"Enhanced query: {enhanced_query}")
 

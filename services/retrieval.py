@@ -8,6 +8,7 @@ import numpy as np
 
 from config.settings import get_settings
 from services.embedding import get_embedding_service
+from services.embedding_cohere import get_cohere_embedding_service
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -16,11 +17,14 @@ settings = get_settings()
 class RetrievalService:
     """Service for retrieving relevant context from the dataset using FAISS."""
 
-    def __init__(self):
+    def __init__(self, embedding_model: int = 1):
         """Initialize the retrieval service with FAISS index."""
         try:
             # Load dataset with pre-computed embeddings
-            with open(settings.DATASET_PATH, 'r', encoding='utf-8') as f:
+            self.embedding_model = embedding_model
+            dataset_path = settings.COHERE_DATASET_PATH if embedding_model == 1 else settings.DATASET_PATH
+
+            with open(dataset_path, 'r', encoding='utf-8') as f:
                 self.data = json.load(f)
 
             if not self.data:
@@ -32,10 +36,6 @@ class RetrievalService:
 
             # Extract pre-computed embeddings
             self.corpus_embeddings = np.array([entry['embedding'] for entry in self.data], dtype=np.float32)
-
-            # Validate embeddings
-            if self.corpus_embeddings.size == 0 or self.corpus_embeddings.shape[0] != len(self.corpus):
-                raise ValueError("Invalid or missing embeddings in dataset")
 
             # Create FAISS index
             self.dimension = self.corpus_embeddings[0].shape[0]
@@ -71,7 +71,9 @@ class RetrievalService:
         """
         try:
             # Encode query
-            embedding_service = get_embedding_service()
+            embedding_service = (
+                get_cohere_embedding_service() if self.embedding_model == 1 else get_embedding_service()
+            )
             query_embedding = embedding_service.encode([query])
 
             # Search FAISS index
@@ -159,6 +161,6 @@ class RetrievalService:
 
 
 @lru_cache()
-def get_retrieval_service() -> RetrievalService:
+def get_retrieval_service(embedding_model: int) -> RetrievalService:
     """Get or create a singleton instance of RetrievalService."""
-    return RetrievalService()
+    return RetrievalService(embedding_model)

@@ -14,9 +14,11 @@ class Settings:
 
     # API Keys
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY")
+    COHERE_API_KEY: str = os.getenv("COHERE_API_KEY")
 
     # Dataset
     DATASET_PATH: str = "datasets/dataset_with_embedding.json"
+    COHERE_DATASET_PATH: str = "datasets/dataset_with_embedding_cohere.json"
 
     # Retrieval Settings
     DEFAULT_TOP_K: int = 3
@@ -24,6 +26,7 @@ class Settings:
 
     # Model Settings
     EMBEDDING_MODEL_NAME: str = "all-MiniLM-L6-v2"
+    COHERE_EMBEDDING_MODEL_NAME: str = "embed-v4.0"
     LLM_MODEL_NAME: str = "gemini-2.0-flash"
 
     # Project root directory

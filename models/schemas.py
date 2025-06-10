@@ -16,6 +16,7 @@ class ChatRequest(BaseModel):
     query: str
     top_k: int = Field(default=3, gt=0, description="Number of top entries to retrieve")
     context_size: int = Field(default=10, ge=0, description="Number of surrounding entries to include")
+    embedding_model: int = Field(default=1, ge=1, le=2, description="Embedding model for RAG (1=Cohere, 2=SentanceTransformers")
 
 
 class ContextEntry(BaseModel):

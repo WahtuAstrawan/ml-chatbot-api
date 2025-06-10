@@ -54,7 +54,7 @@ PERTANYAAN:
 {query}
 
 INSTRUKSI PENTING:
-1. Jawab pertanyaan hanya berdasarkan konteks di atas, dengan akurat, spesifik, dan menggunakan bahasa Indonesia yang jelas serta mudah dipahami.
+1. Hanya jawab pertanyaan yang ditanya, jawab berdasarkan konteks yang paling relevan di atas, dengan jelas, akurat, spesifik, dan menggunakan bahasa Indonesia yang jelas serta mudah dipahami.
 2. Sertakan nama lengkap tokoh atau istilah yang disebutkan dalam konteks, hindari ambiguitas (misalnya, ganti "he" atau "she" dengan nama tokoh yang jelas).
 3. Ikuti alur narasi sesuai urutan bait, pastikan semua peristiwa relevan hingga konflik selesai (jika berlaku) dijelaskan secara kronologis.
 4. Jika pertanyaan meminta motivasi, reaksi, atau tindakan karakter, jelaskan dengan lengkap termasuk pemicu tindakan, konsekuensi, dan nilai budaya (misalnya, dharma) jika relevan.

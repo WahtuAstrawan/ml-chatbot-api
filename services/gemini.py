@@ -38,6 +38,7 @@ class GeminiService:
                 model=settings.LLM_MODEL_NAME,
                 contents=prompt
             )
+            logger.info(f"Gemini enhanced query: {response.text.strip()}")
             return response.text.strip()
         except Exception as e:
             logger.warning(f"Failed to enhance query: {str(e)}. Using original query.")
