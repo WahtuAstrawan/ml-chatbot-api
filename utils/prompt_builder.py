@@ -20,10 +20,8 @@ def build_query_enhancement_prompt(query: str) -> str:
 
     INSTRUKSI:
     1. Terjemahkan query ke bahasa Inggris jika belum dalam bahasa Inggris.
-    2. Perjelas query agar lebih spesifik dan relevan dengan Kakawin Ramayana, tanpa mengubah makna aslinya.
-    3. Pertahankan nama tokoh (misalnya, Dasaratha, Triwikrama, Wedha) dan istilah budaya tanpa perubahan.
-    4. Jika query ambigu, tambahkan konteks untuk memperjelas query agar hasil pencarian dengan FAISS lebih relevan.
-    5. Kembalikan hanya query yang telah diolah dalam bahasa Inggris, tanpa penjelasan atau teks tambahan.
+    2. Pertahankan nama tokoh (misalnya, Dasaratha, Triwikrama) dan istilah budaya tanpa perubahan.
+    3. Kembalikan hanya query yang telah diolah dalam bahasa Inggris, tanpa penjelasan atau teks tambahan.
     """.strip()
 
 
