@@ -22,7 +22,7 @@ class CohereEmbeddingService:
 
     def encode(self, texts: List[str]) -> np.ndarray:
         try:
-            response = self.client.embed(texts=texts, model=self.model_name, input_type="search_document")
+            response = self.client.embed(texts=texts, model=self.model_name, input_type="search_query")
             return np.array(response.embeddings)
         except Exception as e:
             logger.error(f"Error getting embeddings from Cohere: {str(e)}")
