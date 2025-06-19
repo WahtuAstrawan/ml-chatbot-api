@@ -6,6 +6,7 @@ import os
 
 from config.settings import get_settings
 from models.schemas import ChatRequest, ChatResponse, ContextEntry, ErrorResponse
+from services.conversation_service import get_conversation_service
 from services.gemini import get_gemini_service
 from services.retrieval import get_retrieval_service
 
@@ -47,9 +48,10 @@ def get_app_info():
 async def chat_with_kakawin_ramayana(
         request: ChatRequest,
         gemini_service=Depends(get_gemini_service),
+        conversation_service=Depends(get_conversation_service),
 ):
     """
-    Process a chat request and generate a response based on Kakawin Ramayana dataset.
+    Process a chat request and generate a response based on Kakawin Ramayana dataset with conversation context.
 
     Args:
         request: The chat request containing query and retrieval parameters
@@ -62,12 +64,21 @@ async def chat_with_kakawin_ramayana(
         if not request.query.strip():
             raise HTTPException(status_code=400, detail="Query cannot be empty")
 
-        logger.info(f"Received chat request: {request.query[:50]}{'...' if len(request.query) > 50 else ''}")
+        # Handle session management
+        session_id = request.session_id
+        if not session_id:
+            session_id = conversation_service.create_session()
 
-        # Enhance query for better retrieval
+        logger.info(
+            f"Processing chat for session {session_id}: {request.query[:50]}{'...' if len(request.query) > 50 else ''}")
+
+        # Get conversation context for better query understanding
+        conversation_context = conversation_service.get_context_for_query(session_id, request.query)
+
+        # Enhance query with conversation context
         retrieval_service = get_retrieval_service(embedding_model=request.embedding_model)
-        enhanced_query = gemini_service.enhance_query(request.query)
-        logger.debug(f"Enhanced query: {enhanced_query}")
+        enhanced_query = gemini_service.enhance_query_with_context(request.query, conversation_context)
+        logger.debug(f"Enhanced query with context: {enhanced_query}")
 
         # Retrieve relevant contexts
         contexts = retrieval_service.retrieve(
@@ -76,14 +87,29 @@ async def chat_with_kakawin_ramayana(
             context_size=request.context_size
         )
 
-        # Generate response using Gemini
-        response_text = gemini_service.generate_response(request.query, contexts)
+        # Get conversation history for response generation
+        conversation_history = [
+            {"role": msg.role, "content": msg.content}
+            for msg in conversation_service.get_conversation_history(session_id)
+        ]
+
+        # Generate response using Gemini with conversation history
+        response_text = gemini_service.generate_response_with_history(
+            request.query,
+            contexts,
+            conversation_history
+        )
+
+        # Add messages to conversation history
+        conversation_service.add_message(session_id, "user", request.query)
+        conversation_service.add_message(session_id, "assistant", response_text)
 
         # Check if response indicates irrelevant question
         is_irrelevant = "pertanyaan anda tidak relevan" in response_text.strip().lower()
+        is_not_available = "hal tersebut tidak terdapat dalam kakawin ramayana" in response_text.strip().lower()
 
         # Format context entries for response
-        context_entries = [] if is_irrelevant else [
+        context_entries = [] if (is_irrelevant or is_not_available) else [
             ContextEntry(
                 sargah_number=c["sargah_number"],
                 sargah_name=c["sargah_name"],
@@ -97,7 +123,8 @@ async def chat_with_kakawin_ramayana(
 
         return ChatResponse(
             response=response_text,
-            context=context_entries
+            context=context_entries,
+            session_id=session_id
         )
 
     except Exception as e:
