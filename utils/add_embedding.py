@@ -1,57 +1,45 @@
 import json
 import os
-import cohere
+from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 
-# Load API key
+# Load environment variables
 load_dotenv()
-cohere_api_key = os.getenv("COHERE_API_KEY")
-cohere_client = cohere.Client(cohere_api_key)
 
-# Konfigurasi
-sargah_target = 26 # Ganti ini jika ingin memproses sargah_number 2, 3, dst
-input_file = "../datasets/dataset.json"
-output_file = "../datasets/dataset_with_embedding_cohere.json"
+# Konfigurasi file
+input_file = "./datasets/dataset.json"
+output_file = "./datasets/dataset_with_embedding.json"
+embedding_model_name = "all-MiniLM-L6-v2"
+
+# Load SentenceTransformer model
+model = SentenceTransformer(embedding_model_name)
 
 # Load original dataset
 with open(input_file, "r", encoding="utf-8") as f:
-    original_dataset = json.load(f)
+    dataset = json.load(f)
 
-# Load existing output file jika ada, jika tidak gunakan original
-if os.path.exists(output_file):
-    with open(output_file, "r", encoding="utf-8") as f:
-        dataset = json.load(f)
-else:
-    dataset = original_dataset
+# Cari record yang belum memiliki embedding
+records_to_embed = [record for record in dataset if "embedding" not in record]
 
-# Cari entri sargah_target yang belum punya embedding
-records_to_embed = [
-    record for record in dataset
-    if record.get("sargah_number") == sargah_target and "embedding" not in record
-]
-
-# Kalau semua sudah di-embed, skip
+# Jika semua sudah punya embedding
 if not records_to_embed:
-    print(f"Tidak ada entri baru pada sargah_number {sargah_target} yang perlu diproses.")
+    print("All entries already contain embeddings.")
 else:
     texts = [record["text"] for record in records_to_embed]
+    print(f"Embedding {len(texts)} entries with model '{embedding_model_name}'...")
 
-    # Proses embedding
-    response = cohere_client.embed(
-        texts=texts,
-        model="embed-v4.0"
-    )
-    embeddings = response.embeddings
+    # Buat embedding
+    embeddings = model.encode(texts, convert_to_numpy=True).tolist()
 
-    # Sisipkan kembali ke record
+    # Sisipkan embedding ke masing-masing record
     embed_index = 0
     for record in dataset:
-        if record.get("sargah_number") == sargah_target and "embedding" not in record:
+        if "embedding" not in record:
             record["embedding"] = embeddings[embed_index]
             embed_index += 1
 
-    # Simpan kembali
+    # Simpan ke file
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(dataset, f, ensure_ascii=False, indent=2)
 
-    print(f"Embedding untuk sargah_number {sargah_target} berhasil ditambahkan ke '{output_file}'.")
+    print(f"Successfully embedded {embed_index} entries and saved to '{output_file}'.")
