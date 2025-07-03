@@ -34,6 +34,7 @@ class ContextEntry(BaseModel):
     sanskrit_text: str
     text: str
     is_top_k: bool
+    is_sound_available: bool
 
 
 class ChatResponse(BaseModel):

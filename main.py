@@ -116,7 +116,8 @@ async def chat_with_kakawin_ramayana(
                 bait=c["bait"],
                 sanskrit_text=c["sanskrit_text"],
                 text=c["text"],
-                is_top_k=c["is_top_k"]
+                is_top_k=c["is_top_k"],
+                is_sound_available=c["is_sound_available"]
             )
             for c in contexts
         ]

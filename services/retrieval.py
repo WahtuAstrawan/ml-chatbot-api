@@ -9,6 +9,7 @@ import numpy as np
 from config.settings import get_settings
 from services.embedding import get_embedding_service
 from services.embedding_cohere import get_cohere_embedding_service
+from utils.is_sound_available import is_sound_available
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -67,7 +68,7 @@ class RetrievalService:
             context_size: Number of surrounding baits to include
 
         Returns:
-            retrieved_entries with is_top_k boolean attribute
+            retrieved_entries with is_top_k and is_sound_available boolean attribute
         """
         try:
             # Encode query
@@ -110,6 +111,7 @@ class RetrievalService:
                         # Create a new entry with is_top_k flag
                         new_entry = entry.copy()  # Avoid modifying original data
                         new_entry['is_top_k'] = bait_id in top_k_baits
+                        new_entry['is_sound_available'] = is_sound_available(entry['sargah_number'], entry['bait'])
                         retrieved_entries.append(new_entry)
                         seen_baits.add(bait_id)
 
@@ -128,6 +130,7 @@ class RetrievalService:
                             if bait_id not in seen_baits:
                                 new_entry = entry.copy()
                                 new_entry['is_top_k'] = bait_id in top_k_baits
+                                new_entry['is_sound_available'] = is_sound_available(entry['sargah_number'], entry['bait'])
                                 retrieved_entries.append(new_entry)
                                 seen_baits.add(bait_id)
                                 current_count += 1
@@ -142,6 +145,7 @@ class RetrievalService:
                             if bait_id not in seen_baits:
                                 new_entry = entry.copy()
                                 new_entry['is_top_k'] = bait_id in top_k_baits
+                                new_entry['is_sound_available'] = is_sound_available(entry['sargah_number'], entry['bait'])
                                 retrieved_entries.append(new_entry)
                                 seen_baits.add(bait_id)
                                 current_count += 1
